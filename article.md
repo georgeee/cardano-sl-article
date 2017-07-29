@@ -9,26 +9,31 @@ For Cardano SL we need a delegation scheme which would allow us to:
 3.  Would be easy to integrate with HD wallets, i.e. to easily delegate from
     all keys of HD wallet tree/subtree to somebody.
 
-## Original Schema
+## Scheme
 
 The concept of delegation is simple: any stakeholder can allow a delegate to generate blocks on her
 behalf. In the context of our protocol, where a slot leader signs the block it generates for a certain
 slot, such a scheme can be implemented in a straightforward way based on proxy signatures.
 A stakeholder can transfer the right to generate blocks by creating a proxy signing key that
 allows the delegate to sign messages of the form _$(st, d, sl_j)$_ (i.e., the format of messages signed in
-Protocol $\pi\textsubscript{DPoS}$ to authenticate a block). In order to limit the delegate’s block generation power
-to a certain range of epochs/slots, the stakeholder can limit the proxy signing key’s valid message
-space to strings ending with a slot number _$sl_j$_ within a specific range of values. The delegate
-can use a proxy signing key from a given stakeholder to simply run Protocol $\pi\textsubscript{DPoS}$ on her behalf,
-signing the blocks this stakeholder was elected to generate with the proxy signing key.
+Protocol $\pi\textsubscript{DPoS}$ to authenticate a block). Protocol $\pi\textsubscript{DPoS}$ is
+described in [Ouroboros paper](https://eprint.iacr.org/2016/889.pdf), page `[33]`. In order to limit
+the delegate’s block generation power to a certain range of epochs/slots, the stakeholder can limit the
+proxy signing key’s valid message space to strings ending with a slot number _$sl_j$_ within a specific
+range of values. The delegate can use a proxy signing key from a given stakeholder to simply run
+Protocol $\pi\textsubscript{DPoS}$ on her behalf, signing the blocks this stakeholder was elected to
+generate with the proxy signing key.
 
-This simple scheme is secure due to the Verifiability and Prevention of Misuse properties of proxy
+This scheme is secure due to the _Verifiability and Prevention of Misuse_ properties of proxy
 signature schemes, which ensure that any stakeholder can verify that a proxy signing key was actually
 issued by a specific stakeholder to a specific delegate and that the delegate can only use these keys
-to sign messages inside the key’s valid message space, respectively. We remark that while proxy
-signatures can be described as a high level generic primitive, it is easy to construct such schemes
-from standard digital signature schemes through delegation-by-proxy. In this construction,
-a stakeholder signs a certificate specifying the delegates identity (e.g., its public key)
+to sign messages inside the key’s valid message space, respectively. _Verifiability and Prevention of Misuse_
+is described in the [paper](https://eprint.iacr.org/2003/096.pdf)
+“Secure Proxy Signature Schemes for Delegation of Signing Rights”, page `[2]`.
+
+We remark that while proxy signatures can be described as a high level generic primitive, it is easy
+to construct such schemes from standard digital signature schemes through delegation-by-proxy. In this
+construction, a stakeholder signs a certificate specifying the delegates identity (e.g., its public key)
 and the valid message space. Later on, the delegate can sign messages within the valid message
 space by providing signatures for these messages under its own public key along with the signed
 certificate. As an added advantage, proxy signature schemes can also be built from aggregate
@@ -91,11 +96,13 @@ given issuer's public key, signature and message itself.
 
 ### Transaction Distribution
 
-Suppose we have an address `A`. Which stakeholders should benefit from money
-stored on this address? For [`PublicKey`](https://cardanodocs.com/cardano/addresses/)-address it's
-obvious and straightforward, though it's not for
-[`ScriptAddress`](https://cardanodocs.com/cardano/addresses/) (e.g. for `2-of-3` multisig address
-implemented via script we might want to have distribution
+Some addresses have multiple owners, which poses a problem of stake computation as per
+Follow-the-Satoshi each coin should only be counted once towards each stakeholder's stake total.
+
+Suppose we have an address `A`. If it is a [`PublicKey`](https://cardanodocs.com/cardano/addresses/)-address
+it's obvious and straightforward which stakeholders should benefit from money stored on this address,
+though it's not for [`ScriptAddress`](https://cardanodocs.com/cardano/addresses/) (e.g. for `2-of-3` multisig
+address implemented via script we might want to have distribution
 `[(A, 1/3), (B, 1/3), (C, 1/3)]`). For any new address' type introduced via
 softfork in the future it might be useful as well because we don't know in
 advance about semantics of the new address' type and which stakeholder it should
@@ -128,8 +135,8 @@ Binary representation of transaction distribution is described
 
 ## Usage with HD Wallets
 
-For HD wallets, we reserve `(root, 0)` key as a delegator. We use `(root, k > 1, 2*i)`
-keys as receiving addresses and `(root, k > 1, 2*i + 1)` keys as keepers.
+For HD wallets, we reserve _$(root, 0)$_ key as a delegator. We use _$(root, k > 1, 2 * i)$_
+keys as receiving addresses and _$(root, k > 1, 2 * i + 1)$_ keys as keepers.
 
 Delegation or redelegation of the whole HD wallet structure then is as simple as issuing
 a single lightweight/heavyweight certificate for an address `(root, 0)`.
@@ -183,7 +190,7 @@ The next era after Bootstrap is called [the Reward era](https://cardanodocs.com/
     1.  Ada buyers should be able to participate in protocol themselves (or delegate their rights to some
         delegate not from _$S$_).
     2.  Each Ada buyer should explicitly state she wants to take control over her stake.
-        * Otherwise it may easily lead to situation when less than mojority of stake is online once Reward
+        * Otherwise it may easily lead to situation when less than majority of stake is online once Reward
         era starts.
     3.  Before this withdrawing stake action occurs, stake should be still being controlled by _$S$_ nodes.
     4.  _(Optional)_ Stake transition should be free for user.
