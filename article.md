@@ -105,7 +105,16 @@ Initially it was thought this public key to be an actual key which holds money, 
 security by exposing public key of address before spending money from it. We propose a solution
 for this concern.
 
-## Proposal
+## Modified Delegation Proposal
+
+### Modified Delegation Proposal Analysis
+
+As careful reader may observe, when transaction with transaction distribution is being sent, money
+are sent to the key _$K$_, but _$D$_ is responsible for delegation. This way if even _$D$_ public
+component will be exposed (which is case when we would like to delegate with certificate), _$K$_'s
+public key won't be exposed till money are sent. This satisfies requrement 2.
+
+Section **Usage with HD Wallets** descirbes how we satisfy requirement 3.
 
 ### Transaction Distribution
 
