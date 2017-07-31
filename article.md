@@ -9,11 +9,8 @@ We need a delegation scheme for Cardano SL. This scheme:
 3.  Should be easy to integrate with HD wallets, i.e. to easily delegate from
     all keys of HD wallet tree/subtree to somebody.
 
-The big concern is the fact that real stakeholders won't be online simultaneously in the
-beginning of the mainnet.
-
-Firthermore, new address' types can be introduced via softfork in the future, and we don't know
-in advance about semantics of these types.
+The important concern is the fact that new address' types can be introduced via softfork in the future,
+and we don't know in advance about semantics of these types.
 
 ## Original Scheme
 
@@ -105,10 +102,8 @@ given issuer's public key, signature and message itself.
 Current implementation of delegation scheme described below uses proxy signing key scheme, which
 itself requires a public key being associated with stakeholder and used to sign delegation.
 Initially it was thought this public key to be an actual key which holds money, but this decreases
-security by exposing public key of address before spending money from it.
-
-Moreover, as was mentioned in the beginning, all stakeholders won't be online simultaneously in the
-beginning of the mainnet. So we need a solution for it.
+security by exposing public key of address before spending money from it. We propose a solution
+for this concern.
 
 ## Proposal
 
@@ -209,6 +204,9 @@ The next era after Bootstrap is called [the Reward era](https://cardanodocs.com/
         era starts.
     3.  Before this withdrawing stake action occurs, stake should be still being controlled by _$S$_ nodes.
     4.  _(Optional)_ Stake transition should be free for user.
+
+The big concern is the fact that all real stakeholders won't be online simultaneously in the
+beginning of the mainnet. We propose a solution for this concern.
 
 ## Proposal
 
