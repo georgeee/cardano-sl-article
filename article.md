@@ -2,14 +2,20 @@
 
 ## Requirements
 
-For Cardano SL we need a delegation scheme which would allow us to:
+We need a delegation scheme for Cardano SL. This scheme:
 
-1.  Easily delegate/redelegate/revoke rights on stake owned by user.
-2.  Won't require to expose PK on which money are kept to perform delegation.
-3.  Would be easy to integrate with HD wallets, i.e. to easily delegate from
+1.  Should allow us to delegate/redelegate/revoke rights on stake owned by user.
+2.  Shouldn't require to expose public key on which money are kept to perform delegation.
+3.  Should be easy to integrate with HD wallets, i.e. to easily delegate from
     all keys of HD wallet tree/subtree to somebody.
 
-## Scheme
+The big concern is the fact that real stakeholders won't be online simultaneously in the
+beginning of the mainnet.
+
+Firthermore, new address' types can be introduced via softfork in the future, and we don't know
+in advance about semantics of these types.
+
+## Original Scheme
 
 The concept of delegation is simple: any stakeholder can allow a delegate to generate blocks on her
 behalf. In the context of our protocol, where a slot leader signs the block it generates for a certain
@@ -17,7 +23,7 @@ slot, such a scheme can be implemented in a straightforward way based on proxy s
 A stakeholder can transfer the right to generate blocks by creating a proxy signing key that
 allows the delegate to sign messages of the form _$(st, d, sl_j)$_ (i.e., the format of messages signed in
 Protocol $\pi\textsubscript{DPoS}$ to authenticate a block). Protocol $\pi\textsubscript{DPoS}$ is
-described in [Ouroboros paper](https://eprint.iacr.org/2016/889.pdf), page `[33]`. In order to limit
+described in [Ouroboros paper](https://eprint.iacr.org/2016/889.pdf), page _$[33]$_. In order to limit
 the delegate’s block generation power to a certain range of epochs/slots, the stakeholder can limit the
 proxy signing key’s valid message space to strings ending with a slot number _$sl_j$_ within a specific
 range of values. The delegate can use a proxy signing key from a given stakeholder to simply run
@@ -29,7 +35,7 @@ signature schemes, which ensure that any stakeholder can verify that a proxy sig
 issued by a specific stakeholder to a specific delegate and that the delegate can only use these keys
 to sign messages inside the key’s valid message space, respectively. _Verifiability and Prevention of Misuse_
 is described in the [paper](https://eprint.iacr.org/2003/096.pdf)
-“Secure Proxy Signature Schemes for Delegation of Signing Rights”, page `[2]`.
+“Secure Proxy Signature Schemes for Delegation of Signing Rights”, page _$[2]$_.
 
 We remark that while proxy signatures can be described as a high level generic primitive, it is easy
 to construct such schemes from standard digital signature schemes through delegation-by-proxy. In this
@@ -56,14 +62,14 @@ member. This can be facilitated by redistributing the voting rights of delegates
 than _$T$_ to other delegates in a deterministic fashion (e.g., starting from those with the highest stake
 and breaking ties according to lexicographic order).
 
-Suppose that a committee has been formed, $C_1,...,C_m$, from a total of _$k$_ draws of weighing by stake.
+Suppose that a committee has been formed, $C_1, ..., C_m$, from a total of _$k$_ draws of weighing by stake.
 Each committee member will hold _$k_i$_ such votes where $\sum\limits_{i=1}^m k_i = k$. Based on the
 eligibility threshold above it follows that _$m \leq T−1$_ (the maximum value is the case when all stake is
 distributed in _$T−1$_ delegates each holding _$T$_ of the stake).
 
-## Proposal
+## Original Scheme Implementation
 
-The original scheme of delegation is represented in Cardano SL by two different delegation types:
+The original scheme of delegation is implemented in Cardano SL by two different delegation types:
 heavyweight delegation and lightweight delegation.
 
 ### Heavyweight Delegation
@@ -78,7 +84,7 @@ be](https://github.com/input-output-hk/cardano-sl/blob/763822c4fd906f36fa97b6b1f
 a valid issuer.
 
 Proxy signing certificates from heavyweight delegation are stored within the
-blockchain. Issuer can post [only one
+blockchain. Please note that issuer can post [only one
 certificate](https://github.com/input-output-hk/cardano-sl/blob/763822c4fd906f36fa97b6b1f973d31d52342f3f/src/Pos/Delegation/Logic/VAR.hs#L401)
 per one epoch.
 
@@ -87,23 +93,35 @@ per one epoch.
 In contrast to heavyweight delegation, lightweight delegation doesn't require
 that delegate posses _$T$_-or-more stake. So lightweight delegation is available
 for any node. But proxy signing certificates for lightweight delegation are not
-stored in the blockchain. Lightweight delegation certificate must be broadcasted
+stored in the blockchain, so lightweight delegation certificate must be broadcasted
 to reach delegate.
 
 Later lightweight PSK can be
 [verified](https://github.com/input-output-hk/cardano-sl/blob/9d7be20eeafac27e682551d05f4aba2faba537bc/src/Pos/Delegation/Logic/Mempool.hs#L285)
 given issuer's public key, signature and message itself.
 
+## Original Scheme Drawbacks
+
+Current implementation of delegation scheme described below uses proxy signing key scheme, which
+itself requires a public key being associated with stakeholder and used to sign delegation.
+Initially it was thought this public key to be an actual key which holds money, but this decreases
+security by exposing public key of address before spending money from it.
+
+Moreover, as was mentioned in the beginning, all stakeholders won't be online simultaneously in the
+beginning of the mainnet. So we need a solution for it.
+
+## Proposal
+
 ### Transaction Distribution
 
 Some addresses have multiple owners, which poses a problem of stake computation as per
 Follow-the-Satoshi each coin should only be counted once towards each stakeholder's stake total.
 
-Suppose we have an address `A`. If it is a [`PublicKey`](https://cardanodocs.com/cardano/addresses/)-address
+Suppose we have an address _$A$_. If it is a [`PublicKey`](https://cardanodocs.com/cardano/addresses/)-address
 it's obvious and straightforward which stakeholders should benefit from money stored on this address,
 though it's not for [`ScriptAddress`](https://cardanodocs.com/cardano/addresses/) (e.g. for `2-of-3` multisig
 address implemented via script we might want to have distribution
-`[(A, 1/3), (B, 1/3), (C, 1/3)]`). For any new address' type introduced via
+_$[(A, 1/3), (B, 1/3), (C, 1/3)]$_). For any new address' type introduced via
 softfork in the future it might be useful as well because we don't know in
 advance about semantics of the new address' type and which stakeholder it should
 be attributed to.
@@ -112,7 +130,7 @@ Transaction distribution is a value associated with each transaction's output,
 holding information on which stakeholder should receive which particular amount
 of money on his stake. Technically it's a list of pairs composed from stakeholder's
 identificator and corresponding amount of money. E.g. for output `(A, 100)`
-distribution might be `[(B, 10), (C, 90)]`.
+distribution might be _$[(B, 10), (C, 90)]$_.
 
 Transaction distributions are considered by both [slot-leader election
 process](https://cardanodocs.com/technical/leader-selection/) and Richmen Computations.
@@ -120,31 +138,20 @@ process](https://cardanodocs.com/technical/leader-selection/) and Richmen Comput
 This feature is very similar to [delegation](https://cardanodocs.com/technical/delegation/), but there
 are differences:
 
-1.  There is no certificate(s): to revoke delegation `A` has to move funds,
+1.  There is no certificate(s): to revoke delegation _$A$_ has to move funds,
     providing different distribution.
 2.  Stake is delegated partially (with regular delegation types, it's done for
     whole address' stake).
-3.  Only part of `A`'s balance associated with this transaction output is
+3.  Only part of _$A$_'s balance associated with this transaction output is
     delegated.
 
 By consensus, transaction distribution for `PublicKey`-address should be set to
 empty.
 
-Binary representation of transaction distribution is described
-[here](https://cardanodocs.com/technical/protocols/binary-protocols/#transaction-distribution).
+### Protocol Participation Keys and Spending Keys
 
-## Usage with HD Wallets
-
-For HD wallets, we reserve _$(root, 0)$_ key as a delegator. We use _$(root, k > 1, 2 * i)$_
-keys as receiving addresses and _$(root, k > 1, 2 * i + 1)$_ keys as keepers.
-
-Delegation or redelegation of the whole HD wallet structure then is as simple as issuing
-a single lightweight/heavyweight certificate for an address `(root, 0)`.
-
-## Note on Signing/Spending Keys
-
-In Tx output distribution we specify protocol participation key(s), i.e. keys to control stake,
-associated with transaction output.
+Transaction distribution is a practical way to split spending keys and protocol participation
+keys. Protocol participation keys allow to control stake, associated with transaction output.
 
 In transaction output we specify spending key data. Thus:
 
@@ -166,9 +173,17 @@ address _$K$_, but the right to issue blocks and participate in slot leader elec
 by _$D$_. This way we effectively decoupled key which controls money and key which is used for
 protocol maintenance.
 
+### Usage with HD Wallets
+
+For HD wallets, we reserve _$(root, 0)$_ key as a delegator. We use _$(root, k > 1, 2 * i)$_
+keys as receiving addresses and _$(root, k > 1, 2 * i + 1)$_ keys as keepers.
+
+Delegation or redelegation of the whole HD wallet structure then is as simple as issuing
+a single lightweight/heavyweight certificate for an address `(root, 0)`.
+
 And if we want to delegate to some stakeholder, we use already existing approaches for lightweight
 or heavyweight delegation. In this case public key of _$D$_ would be exposed, but this doesn't drop
-any security guarantees, to meet delegation requirement #2 mentioned above.
+any security guarantees.
 
 # Stake Locking in Cardano SL
 
