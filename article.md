@@ -135,10 +135,9 @@ are differences:
 
 1.  There is no certificate(s): to revoke delegation _$A$_ has to move funds,
     providing different distribution.
-2.  Stake is delegated partially (with regular delegation types, it's done for
-    whole address' stake).
-3.  Only part of _$A$_'s balance associated with this transaction output is
-    delegated.
+2.  Only part of _$A$_'s balance associated with this transaction output is delegated.
+    This can be done in chunks per balance parts (on contrary, delegation requires you
+    to delegate all funds of whole address at once).
 
 By consensus, transaction distribution for `PublicKey`-address should be set to
 empty.
