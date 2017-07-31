@@ -109,6 +109,9 @@ for this concern.
 
 ### Transaction Distribution
 
+Transaction distribution is another part of Cardano SL, not directly related to delegation,
+but one we can exploit for its benefit.
+
 Some addresses have multiple owners, which poses a problem of stake computation as per
 Follow-the-Satoshi each coin should only be counted once towards each stakeholder's stake total.
 
