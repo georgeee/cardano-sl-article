@@ -123,6 +123,8 @@ but one we can exploit for its benefit.
 
 Some addresses have multiple owners, which poses a problem of stake computation as per
 Follow-the-Satoshi each coin should only be counted once towards each stakeholder's stake total.
+Unlike balance (real amount of coins on the balance), stake gives user power to control different
+algorithm parts: being the slot leader, voting in Update system, taking part in MPC/SSC.
 
 Suppose we have an address _$A$_. If it is a [`PublicKey`](https://cardanodocs.com/cardano/addresses/)-address
 it's obvious and straightforward which stakeholders should benefit from money stored on this address,
@@ -191,12 +193,14 @@ a single lightweight/heavyweight certificate for an address `(root, 0)`.
 
 The Bootstrap era is the period of Cardano SL existence that allows only fixed predefined
 users to have control over the system. The set of such users (the bootstrap stakeholders)
-is defined in [`gcdBootstrapStakeholders`](https://github.com/input-output-hk/cardano-sl/blob/f73d41b2bbd0a823911490974a71608fb4dbe014/core/Pos/Core/Genesis/Types.hs#L74). The Bootstrap era will end when bootstrap stakeholders
-will vote for it. Special update proposal will be formed, where a particular constant will
-be set appropriately to trigger Bootstrap era end at the point update proposal gets adopted.
-Please see [`isBootstrapEra`](https://github.com/input-output-hk/cardano-sl/blob/18997b4e3db62ed9e9c9d69baf8ef2a8800fbf1f/core/Pos/Core/Slotting.hs#L137) function for more details.
+and propotion of total stake each of them controls is defined in genesis block.
+
+Purpose of Bootstrap era is to address concern that at the beginning of mainnet majority of
+stake will probably be offline (which protocol broken at start). Bootstrap era is to be ended
+when network stabilizes and majority of stake is present online.
 
 The next era after Bootstrap is called [the Reward era](https://cardanodocs.com/timeline/reward/).
+Reward era is actually a "normal" operation mode of Cardano SL as a PoS-cryptocurrency.
 
 ## Requirements
 
@@ -210,45 +214,37 @@ The next era after Bootstrap is called [the Reward era](https://cardanodocs.com/
         * Otherwise it may easily lead to situation when less than majority of stake is online once Reward
         era starts.
     3.  Before this withdrawing stake action occurs, stake should be still being controlled by _$S$_ nodes.
-    4.  _(Optional)_ Stake transition should be free for user.
-
-The big concern is the fact that all real stakeholders won't be online simultaneously in the
-beginning of the mainnet. We propose a solution for this concern.
+    4.  _(Optional)_ Stake transition during unlocking should be free for user.
 
 ## Proposal
-
-Every transaction output (which is a pair `(address,coin)`) is accompanied by transaction
-output distribution (`txOutDistr`). [`TxOutDistribution`](https://github.com/input-output-hk/cardano-sl/blob/f73d41b2bbd0a823911490974a71608fb4dbe014/txp/Pos/Txp/Core/Types.hs#L132) type is `[(StakeholderId, Coin)]` and it defines
-stake distribution of the output. Unlike balance (real amount of coins on the balance),
-stake gives user power to control different algorithm parts: being the slot leader, voting
-in update system, taking part in MPC/SSC. `txOutDistr` is an ad hoc way to delegate the stake
-without using more elaborate and complex delegation scheme. If `[]` is a set in `txOutDistr`,
-it is supposed to be `[(address_i, coin_i)]` (for tx out `(address_i, coin_i)`), so stake
-goes to where output tells. It is important to notice that the sum of coins in `txOutDistr`
-should be equal to `coin`.
 
 Let us now present the Bootstrap era solution:
 
 1.  Initial `utxo` contains all the stake distributed among `gcdBootstrapStakeholders`. Initial `utxo`
-    consists of `(txOut, txOutDistr)` pairs, so we just set `txOutDistr` in a way it sends all coins
-    to `gcdBootstrapStakeholders`. Let `txOut = (address, coin)`. The distribution technique inside
-    attributes `coin / (length gcdBootstrapStakeholders)` to every party in `gcdBootstrapStakeholders`,
-    remainder to arbitrary `b ∈ gcdBootstrapStakeholders` (based on `hash coin`).
+    consists of `(txOut, txOutDistr)` pairs, so we just set` txOutDistr` in a way it sends all coins
+    to `gcdBootstrapStakeholders` in proportion specified in genesis block.
 2.  While the Bootstrap era takes place, users can send transactions changing initial `utxo`. We enforce
-    spreading `txDistr` to `gcdBootstrapStakeholders` in our wallet/client and forbid transactions that
-    move stake out of `gcdBootstrapStakeholders` set. This effectively makes stake distribution is system
-    constant.
-3.  When the Bootstrap era is over, we disable restriction on `txOutDistr`. System operates the same way as in
-    Bootstrap era, but users need to explicitly state they understand owning their stake leads to
-    responsibility to handle the node. For user to get his stake back he should send a transaction
-    to delegate key(s). It may be the key owned by user himself or the key of some delegate (which may
-    also be one or few of `gcdBootstrapStakeholders`).
+    setting `txOutDistr` for each transction output to spread stake to `gcdBootstrapStakeholders` in
+    proportion specified by genesis block. This effectively makes stake distribution is system constant.
+3.  When the Bootstrap era is over, we disable restriction on `txOutDistr`. Bootstrap stakeholders will
+    vote for Bootstrap era ending: special update proposal will be formed, where a particular constant
+    will be set appropriately to trigger Bootstrap era end at the point update proposal gets adopted.
+    System operates the same way as in Bootstrap era, but users need to explicitly state they understand
+    owning their stake leads to responsibility to handle the node. For user to get his stake back he should
+    send a transaction to delegate key(s). It may be the key owned by user himself or the key of some delegate
+    (which may also be one or few of `gcdBootstrapStakeholders`).
 
 ### Multiple Nodes with Same Key
 
-Secret key _$s \in S$_ can be distributed accross multiple nodes, to reduce the size of transactions. In this
-case these nodes will be able run with the same secret key and to participate in the algorithm in round-robin
-fashion, i.e.:
+To reduce the size of transactions, we want to have set of bootstrap stakeholder as small as possible. In
+principle it should be as small as number of actual parties involved (e.g. IOHK, CGG, CF each holding single key).
+
+This way it's handy to have secret key _$s \in gcdBootstrapStakeholders$_ can be distributed accross multiple
+nodes (because usual case is you want to have multiple nodes operating in different data centers to provide
+reliable service).
+
+Simplest proposal to distribute key accross multiple nodes would be to run multiple nodes with the same secret key
+and have them participating in the algorithm in round-robin fashion, in particular:
 
 1.  Create blocks in predefined order. If key is a slot leader for _$slot_1$_, _$slot_3$_ and _$slot_5$_,
     then _$node_0$_ creates block at _$slot_1$_, _$node_1$_ - at _$slot_3$_, and _$node_2$_ - at _$slot_5$_.
@@ -257,5 +253,9 @@ fashion, i.e.:
 
 ### Free Transaction for Bootstrap Era
 
-Delegating stake back is done via transaction. But transactions cost money, so we want allow free transaction
-from outputs formed at end of the Bootstrap era.
+Delegating stake back is done via transaction. But transactions cost money (via fees), which violates requirement
+`4.4` (which is marked as an optional, but yet desirable).
+
+As a solution to this issue we could make a snapshot of utxo _$U$_ at the moment Bootstrap era ends and don't
+require fees to be withdrawn from any transaction output, contained in _$U$_. This will effectively make delegation
+transition transaction free.
