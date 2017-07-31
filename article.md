@@ -105,18 +105,7 @@ Initially it was thought this public key to be an actual key which holds money, 
 security by exposing public key of address before spending money from it. We propose a solution
 for this concern.
 
-## Modified Delegation Proposal
-
-### Modified Delegation Proposal Analysis
-
-As careful reader may observe, when transaction with transaction distribution is being sent, money
-are sent to the key _$K$_, but _$D$_ is responsible for delegation. This way if even _$D$_ public
-component will be exposed (which is case when we would like to delegate with certificate), _$K$_'s
-public key won't be exposed till money are sent. This satisfies requrement 2.
-
-Section **Usage with HD Wallets** descirbes how we satisfy requirement 3.
-
-### Transaction Distribution
+## Transaction Distribution
 
 Transaction distribution is another part of Cardano SL, not directly related to delegation,
 but one we can exploit for its benefit.
@@ -144,7 +133,7 @@ distribution might be _$[(B, 10), (C, 90)]$_.
 Transaction distributions are considered by both [slot-leader election
 process](https://cardanodocs.com/technical/leader-selection/) and Richmen Computations.
 
-This feature is very similar to [delegation](https://cardanodocs.com/technical/delegation/), but there
+This feature can be used in similar way to [delegation](https://cardanodocs.com/technical/delegation/), but there
 are differences:
 
 1.  There is no certificate(s): to revoke delegation _$A$_ has to move funds,
@@ -153,8 +142,7 @@ are differences:
     This can be done in chunks per balance parts (on contrary, delegation requires you
     to delegate all funds of whole address at once).
 
-By consensus, transaction distribution for `PublicKey`-address should be set to
-empty.
+## Modified Delegation Proposal
 
 ### Protocol Participation Keys and Spending Keys
 
@@ -189,6 +177,16 @@ keys as receiving addresses and _$(root, k > 1, 2 * i + 1)$_ keys as keepers.
 Delegation or redelegation of the whole HD wallet structure then is as simple as issuing
 a single lightweight/heavyweight certificate for an address `(root, 0)`.
 
+
+## Modified Delegation Proposal Analysis
+
+As careful reader may observe, when transaction with transaction distribution is being sent, money
+are sent to the key _$K$_, but _$D$_ is responsible for delegation. This way if even _$D$_ public
+component will be exposed (which is case when we would like to delegate with certificate), _$K$_'s
+public key won't be exposed till money are sent. This satisfies requrement 2.
+
+Section **Usage with HD Wallets** descirbes how we satisfy requirement 3.
+
 # Stake Locking in Cardano SL
 
 The Bootstrap era is the period of Cardano SL existence that allows only fixed predefined
@@ -221,18 +219,18 @@ Reward era is actually a "normal" operation mode of Cardano SL as a PoS-cryptocu
 Let us now present the Bootstrap era solution:
 
 1.  Initial `utxo` contains all the stake distributed among `gcdBootstrapStakeholders`. Initial `utxo`
-    consists of `(txOut, txOutDistr)` pairs, so we just set` txOutDistr` in a way it sends all coins
+    consists of `(txOut, txOutDistr)` pairs, so we just set `txOutDistr` in a way it sends all coins
     to `gcdBootstrapStakeholders` in proportion specified in genesis block.
 2.  While the Bootstrap era takes place, users can send transactions changing initial `utxo`. We enforce
-    setting `txOutDistr` for each transction output to spread stake to `gcdBootstrapStakeholders` in
+    setting `txOutDistr` for each transaction output to spread stake to `gcdBootstrapStakeholders` in
     proportion specified by genesis block. This effectively makes stake distribution is system constant.
 3.  When the Bootstrap era is over, we disable restriction on `txOutDistr`. Bootstrap stakeholders will
     vote for Bootstrap era ending: special update proposal will be formed, where a particular constant
     will be set appropriately to trigger Bootstrap era end at the point update proposal gets adopted.
     System operates the same way as in Bootstrap era, but users need to explicitly state they understand
     owning their stake leads to responsibility to handle the node. For user to get his stake back he should
-    send a transaction to delegate key(s). It may be the key owned by user himself or the key of some delegate
-    (which may also be one or few of `gcdBootstrapStakeholders`).
+    send a transaction, specifying delegate key(s) in `txOutDistr`. It may be the key owned by user himself
+    or the key of some delegate (which may also be one or few of `gcdBootstrapStakeholders`).
 
 ### Multiple Nodes with Same Key
 
@@ -253,7 +251,7 @@ and have them participating in the algorithm in round-robin fashion, in particul
 
 ### Free Transaction for Bootstrap Era
 
-Delegating stake back is done via transaction. But transactions cost money (via fees), which violates requirement
+Delegating stake back to user is done via transaction. But transactions cost money (via fees), which violates requirement
 `4.4` (which is marked as an optional, but yet desirable).
 
 As a solution to this issue we could make a snapshot of utxo _$U$_ at the moment Bootstrap era ends and don't
