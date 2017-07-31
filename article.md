@@ -178,10 +178,6 @@ keys as receiving addresses and _$(root, k > 1, 2 * i + 1)$_ keys as keepers.
 Delegation or redelegation of the whole HD wallet structure then is as simple as issuing
 a single lightweight/heavyweight certificate for an address `(root, 0)`.
 
-And if we want to delegate to some stakeholder, we use already existing approaches for lightweight
-or heavyweight delegation. In this case public key of _$D$_ would be exposed, but this doesn't drop
-any security guarantees.
-
 # Stake Locking in Cardano SL
 
 The Bootstrap era is the period of Cardano SL existence that allows only fixed predefined
