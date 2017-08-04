@@ -61,8 +61,8 @@ and breaking ties according to lexicographic order).
 
 Suppose that a committee has been formed, $C_1, ..., C_m$, from a total of _$k$_ draws of weighing by stake.
 Each committee member will hold _$k_i$_ such votes where $\sum\limits_{i=1}^m k_i = k$. Based on the
-eligibility threshold above it follows that _$m \leq T−1$_ (the maximum value is the case when all stake is
-distributed in _$T−1$_ delegates each holding _$T$_ of the stake).
+eligibility threshold above it follows that _$m \leq T^{−1}$_ (the maximum value is the case when all stake is
+distributed in _$T^{−1}$_ delegates each holding _$T$_ of the stake).
 
 ## Original Scheme Implementation
 
@@ -97,6 +97,39 @@ Later lightweight PSK can be
 [verified](https://github.com/input-output-hk/cardano-sl/blob/9d7be20eeafac27e682551d05f4aba2faba537bc/src/Pos/Delegation/Logic/Mempool.hs#L285)
 given issuer's public key, signature and message itself.
 
+### Why Two Delegations?
+
+Heavyweight certificates are stored in the blockchain, so delegated stake may participate in MPC
+by being added to the stake of delegate. So delegate by many heavyweight delegations may accumulate
+enough stake to pass eligibility threshold.
+
+On the contrary, stake for lightweight delegation won't be counted in delegate's MPC-related stake.
+
+### Revocation Certificate
+
+Revocation certificate is a special certificate that issuer creates to revoke delegation.
+Both heavyweight and lightweight delegation can be revoked, but not in the same way.
+
+The revocation certificate is just a normal one where [issuer and delegate are the same](https://github.com/input-output-hk/cardano-sl/blob/db306d7db0d05610005c5bee98c7be3918fb7947/src/Pos/Delegation/Helpers.hs#L35)
+(in other words, issuer delegates to himself).
+
+To revoke lightweight delegation issuer sends revocation certificate to the network and
+_asks_ to revoke delegation, but it cannot _enforce_ this revocation, since lightweight PSKs
+are not the part of the blockchain.
+
+Revocation of heavyweight delegation is handled other way. Since proxy signing certificates
+from heavyweight delegation are stored within the blockchain, revocation certificate will be
+committed in the blockchain as well. In this case the node removes heavyweight delegation
+certificate which was issued before revocation certificate. But there are two important notes
+about it.
+
+1.  If the committed heavyweight delegation certificate is in the node's memory pool yet, and revocation
+    certificate was committed as well, the delegation certificate will be removed from the memory pool.
+    Obviously, in this case delegation certificate will never be added to the blockchain.
+2.  If a user commits heavyweight delegation certificate and _after that_ he loses money, he still
+    can revoke that delegation, even if by that time he does not have enough money (i.e. less than
+    threshold `T` mentioned above).
+
 ## Original Scheme Drawbacks
 
 Current implementation of delegation scheme described below uses proxy signing key scheme, which
@@ -127,7 +160,7 @@ be attributed to.
 Transaction distribution is a value associated with each transaction's output,
 holding information on which stakeholder should receive which particular amount
 of money on his stake. Technically it's a list of pairs composed from stakeholder's
-identificator and corresponding amount of money. E.g. for output `(A, 100)`
+identificator and corresponding amount of money. E.g. for output _$(A, 100)$_
 distribution might be _$[(B, 10), (C, 90)]$_.
 
 Transaction distributions are considered by both [slot-leader election
@@ -175,7 +208,7 @@ For HD wallets, we reserve _$(root, 0)$_ key as a delegator. We use _$(root, k >
 keys as receiving addresses and _$(root, k > 1, 2 * i + 1)$_ keys as keepers.
 
 Delegation or redelegation of the whole HD wallet structure then is as simple as issuing
-a single lightweight/heavyweight certificate for an address `(root, 0)`.
+a single lightweight/heavyweight certificate for an address _$(root, 0)$_.
 
 
 ## Modified Delegation Proposal Analysis
