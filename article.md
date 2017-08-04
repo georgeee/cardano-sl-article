@@ -309,7 +309,7 @@ This doesn’t seem to open significant attack surface. Addresses are open data 
 appear on chain only via inclusion into transaction which is signed, this way addresses attributes cannot be subject for
 modification by adversary.
 
-But one design flow of scheme is that if user _$U$_ asks user _$V$_ to send transaction to his address _$A = \langle A_{pkhash}, A_{attrs} \rangle$_,
+But one design flaw of scheme is that if user _$U$_ asks user _$V$_ to send transaction to his address _$A = \langle A_{pkhash}, A_{attrs} \rangle$_,
 _$V$_ can modify _$A_{attrs}$_ and send funds to _$A’ = \langle A_{pkhash}, A_{attrs}’ \rangle$_. This leads to awkward situation when _$U$_ actually
 has access to _$A’$_, i.e. may spend funds from it, but in fact _$A’ \neq A$_ and attrs may contain some attributes which are
 sensitive for workflow used by _$U$_. For instance, if we store delegate address as attribute, _$V$_ may replace delegate and _$U$_
