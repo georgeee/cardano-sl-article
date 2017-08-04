@@ -128,7 +128,7 @@ about it.
     Obviously, in this case delegation certificate will never be added to the blockchain.
 2.  If a user commits heavyweight delegation certificate and _after that_ he loses money, he still
     can revoke that delegation, even if by that time he does not have enough money (i.e. less than
-    threshold `T` mentioned above).
+    threshold _$T$_ mentioned above).
 
 ## Original Scheme Drawbacks
 
@@ -150,7 +150,7 @@ algorithm parts: being the slot leader, voting in Update system, taking part in 
 
 Suppose we have an address _$A$_. If it is a [`PublicKey`](https://cardanodocs.com/cardano/addresses/)-address
 it's obvious and straightforward which stakeholders should benefit from money stored on this address,
-though it's not for [`ScriptAddress`](https://cardanodocs.com/cardano/addresses/) (e.g. for `2-of-3` multisig
+though it's not for [`ScriptAddress`](https://cardanodocs.com/cardano/addresses/) (e.g. for _$2-of-3$_ multisig
 address implemented via script we might want to have distribution
 _$[(A, 1/3), (B, 1/3), (C, 1/3)]$_). For any new address' type introduced via
 softfork in the future it might be useful as well because we don't know in
@@ -184,8 +184,8 @@ keys. Protocol participation keys allow to control stake, associated with transa
 
 In transaction output we specify spending key data. Thus:
 
-* for `PublicKey`-address we specify spending key hash,
-* for `Script`-address some spending key will be used within script probably.
+* for public key address we specify spending key hash,
+* for script address some spending key will be used within script probably.
 
 Let's consider basic use case. We want user _$U$_ to send _$v$_ coins to our address _$R$_. Then
 we find transaction _$U \rightarrow R$_ in the blockchain, which shows us money were sent.
@@ -197,7 +197,7 @@ Let's assume we have two more addresses:
 2.  _$D$_, _delegator_ address.
 
 Next we form a new transaction _$R \rightarrow K$_ (sending all _$v$_ coins from _$R$_ to _$K$_)
-with `txDistr = [(D, v)]`. After this transaction will be processed, funds would be contained on
+with _$txDistr = [(D, v)]$_. After this transaction will be processed, funds would be contained on
 address _$K$_, but the right to issue blocks and participate in slot leader election would be held
 by _$D$_. This way we effectively decoupled key which controls money and key which is used for
 protocol maintenance.
@@ -251,19 +251,19 @@ Reward era is actually a "normal" operation mode of Cardano SL as a PoS-cryptocu
 
 Let us now present the Bootstrap era solution:
 
-1.  Initial `utxo` contains all the stake distributed among `gcdBootstrapStakeholders`. Initial `utxo`
-    consists of `(txOut, txOutDistr)` pairs, so we just set `txOutDistr` in a way it sends all coins
-    to `gcdBootstrapStakeholders` in proportion specified in genesis block.
-2.  While the Bootstrap era takes place, users can send transactions changing initial `utxo`. We enforce
-    setting `txOutDistr` for each transaction output to spread stake to `gcdBootstrapStakeholders` in
+1.  Initial _$utxo$_ contains all the stake distributed among _$gcdBootstrapStakeholders$_. Initial _$utxo$_
+    consists of _$(txOut, txOutDistr)$_ pairs, so we just set _$txOutDistr$_ in a way it sends all coins
+    to _$gcdBootstrapStakeholders$_ in proportion specified in genesis block.
+2.  While the Bootstrap era takes place, users can send transactions changing initial _$utxo$_. We enforce
+    setting _$txOutDistr$_ for each transaction output to spread stake to _$gcdBootstrapStakeholders$_ in
     proportion specified by genesis block. This effectively makes stake distribution is system constant.
-3.  When the Bootstrap era is over, we disable restriction on `txOutDistr`. Bootstrap stakeholders will
+3.  When the Bootstrap era is over, we disable restriction on _$txOutDistr$_. Bootstrap stakeholders will
     vote for Bootstrap era ending: special update proposal will be formed, where a particular constant
     will be set appropriately to trigger Bootstrap era end at the point update proposal gets adopted.
     System operates the same way as in Bootstrap era, but users need to explicitly state they understand
     owning their stake leads to responsibility to handle the node. For user to get his stake back he should
-    send a transaction, specifying delegate key(s) in `txOutDistr`. It may be the key owned by user himself
-    or the key of some delegate (which may also be one or few of `gcdBootstrapStakeholders`).
+    send a transaction, specifying delegate key(s) in _$txOutDistr$_. It may be the key owned by user himself
+    or the key of some delegate (which may also be one or few of _$gcdBootstrapStakeholders$_).
 
 ### Multiple Nodes with Same Key
 
@@ -284,9 +284,68 @@ and have them participating in the algorithm in round-robin fashion, in particul
 
 ### Free Transaction for Bootstrap Era
 
-Delegating stake back to user is done via transaction. But transactions cost money (via fees), which violates requirement
-`4.4` (which is marked as an optional, but yet desirable).
+Delegating stake back to user is done via transaction. But transactions cost money (via fees), which violates
+requirement _$4.4$_ (which is marked as an optional, but yet desirable).
 
 As a solution to this issue we could make a snapshot of utxo _$U$_ at the moment Bootstrap era ends and don't
 require fees to be withdrawn from any transaction output, contained in _$U$_. This will effectively make delegation
 transition transaction free.
+
+# Follow-up on Merkle Tree Idea
+
+## Address attribute malleability issue
+
+Designing data structures for Cardano SL, we widely adopted idea of putting attributes to various data structures, including:
+
+* transactions,
+* addresses,
+* update proposals,
+* block, block header.
+
+This was introduced for leaving us an option to include additional data to these structures via soft fork update.
+
+Most of these data structures are being signed before putting to the blockchain, only exemption for this rule is address.
+This doesn’t seem to open significant attack surface. Addresses are open data exchanged between users off chain. They may
+appear on chain only via inclusion into transaction which is signed, this way addresses attributes cannot be subject for
+modification by adversary.
+
+But one design flow of scheme is that if user _$U$_ asks user _$V$_ to send transaction to his address _$A = \langle A_{pkhash}, A_{attrs} \rangle$_,
+_$V$_ can modify _$A_{attrs}$_ and send funds to _$A’ = \langle A_{pkhash}, A_{attrs}’ \rangle$_. This leads to awkward situation when _$U$_ actually
+has access to _$A’$_, i.e. may spend funds from it, but in fact _$A’ \neq A$_ and attrs may contain some attributes which are
+sensitive for workflow used by _$U$_. For instance, if we store delegate address as attribute, _$V$_ may replace delegate and _$U$_
+will receive correct transaction, but funds would not be delegated to appropriate delegate.
+
+In ideal world we would prefer to restrict such cases.
+
+## Address Structure Modification with Use of Merkle Tree
+
+Let's consider public key addresses. Public key address is at the moment composed from:
+
+* public key hash,
+* attribute list.
+
+As is mentioned in previous section, public key address is now subject to malleability issue.
+
+But there is an idea on how to solve this issue. Instead of defining address as _$Address = (PubKeyHash, Attributes)$_ we may better
+define _$Address' = (MerkleRoot [PubKey, Attributes], Attributes)$_. By _$MerkleRoot$_ here we mean root of Merkle tree built upon
+defined list of data.
+
+Let's consider what will change.
+
+### Changes in Workflow
+
+Sending transaction from _$B$_ to _$A$_ is same. _$A$_ gives _$B$_ an _$Address'$_. _$B$_ sends money to it. This _$Address'$_ is stored
+on the blockchain just in same way as old _$Address$_ was stored.
+
+When _$A$_ wants to withdraw these funds, he uses public key, corresponding to this _$Address'$_. By combining public key and attributes
+with _$MerkleRoot$_ one may build _$Address'$_ and check if it's same for _$utxo$_ entry that is to be spend. Interesting property here
+is that _$B$_ can't change attributes without corrupting Merkle root (because _$B$_ doesn't know public key hash). And if Merkle root
+presented in address is corrupted, then address is invalid by design and thus _$B$_ sends money to nowhere (which is _$B$_'s problem).
+This effectively solves address attribute malleability.
+
+## Application of Modification to Delegation Concerns
+
+With having attributes as an unmodifiable part of address, we can get rid of _$txOutDistr$_ feature and instead have delegate key
+distribution field as a part of address. This way we won't need aforementioned flow with recieving money to address _$R$_, then sending
+_$R \rightarrow K$_ with _$txOutDistr = [(D, value)]$_. We just present _$(K, Attributes \{ delegateDistr = [(D, value)] \})$_ as an
+address and then it's guaranteed that we will recieve money to _$K$_ and have _$D$_ as protocol participation key (which was our intention).
